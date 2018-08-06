@@ -9,7 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 from www import orm
 from www.coreweb import add_static, add_routes
 from www.config import configs
-
+from www.handlers import cookie2user, COOKIE_NAME
 
 def init_jinja2(app, **kw):
     logging.info('init jinja2...')
@@ -95,6 +95,20 @@ async def response_factory(app, handler):
         return resp
 
     return response
+
+async def auth_factory(app,handler):
+    async def auth(request):
+        logging.info('check user: %s %s' % (request.method, request.path))
+        request.__user__ = None
+        cookie_str = request.cookies.get(COOKIE_NAME)
+        if cookie_str:
+            user = cookie2user(cookie_str)
+            if user:
+                logging.info('set current user: %s' % user.email)
+                request.__user__ = user
+        if
+        return
+    return auth
 
 
 def datetime_filter(t):
