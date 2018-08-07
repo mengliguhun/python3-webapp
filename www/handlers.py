@@ -29,6 +29,7 @@ def user2cookie(user,max_age):
     L = [user.id, expires, hashlib.sha1(s.encode('utf-8')).hexdigest()]
     return '-'.join(L)
 
+
 async def cookie2user(cookie_str):
     '''
     Parse cookie and load user if cookie is valid.
@@ -42,7 +43,7 @@ async def cookie2user(cookie_str):
         L = cookie_str.split('-')
         if len(L) != 3:
             return None
-        uid,expires,sha1 = L
+        uid, expires, sha1 = L
         if int(expires) < time.time():
             return None
         user = await User.find(uid)
