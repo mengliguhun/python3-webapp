@@ -37,7 +37,7 @@ async def logger_factory(app, handler):
     async def logger(request):
         logging.info('Request: %s %s' % (request.method, request.path))
         # await asyncio.sleep(0.3)
-        return (await handler(request))
+        return await handler(request)
 
     return logger
 
@@ -96,7 +96,8 @@ async def response_factory(app, handler):
 
     return response
 
-async def auth_factory(app,handler):
+
+async def auth_factory(app, handler):
     async def auth(request):
         logging.info('check user: %s %s' % (request.method, request.path))
         request.__user__ = None
@@ -106,8 +107,9 @@ async def auth_factory(app,handler):
             if user:
                 logging.info('set current user: %s' % user.email)
                 request.__user__ = user
-        if
-        return
+        if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
+            return web.HTTPFound('/signin')
+        return await handler(request)
     return auth
 
 
@@ -132,7 +134,7 @@ def index(request):
 async def init(loop):
     await orm.create_pool(loop=loop, user=configs.db.user, password=configs.db.password, db=configs.db.database)
     app = web.Application(loop=loop, middlewares=[
-        logger_factory, response_factory
+        logger_factory, response_factory, auth_factory
     ])
 
     init_jinja2(app, filters=dict(datetime=datetime_filter))
