@@ -11,6 +11,7 @@ from www.coreweb import add_static, add_routes
 from www.config import configs
 from www.handlers import cookie2user, COOKIE_NAME
 
+
 def init_jinja2(app, **kw):
     logging.info('init jinja2...')
     options = dict(
@@ -80,14 +81,15 @@ async def response_factory(app, handler):
                 resp.content_type = 'application/json;charset=utf-8'
                 return resp
             else:
+                r['__user__']=request.__user__
                 resp = web.Response(body=app['__templating__'].get_template(template).render(**r).encode('utf-8'))
                 resp.content_type = 'text/html;charset=utf-8'
                 return resp
-        if isinstance(r, int) and r >= 100 and r < 600:
+        if isinstance(r, int) and 100 <= r < 600:
             return web.Response(r)
         if isinstance(r, tuple) and len(r) == 2:
             t, m = r
-            if isinstance(t, int) and t >= 100 and t < 600:
+            if isinstance(t, int) and 100 <= t < 600:
                 return web.Response(t, str(m))
         # default:
         resp = web.Response(body=str(r).encode('utf-8'))
@@ -110,6 +112,7 @@ async def auth_factory(app, handler):
         if request.path.startswith('/manage/') and (request.__user__ is None or not request.__user__.admin):
             return web.HTTPFound('/signin')
         return await handler(request)
+
     return auth
 
 
@@ -134,7 +137,7 @@ def index(request):
 async def init(loop):
     await orm.create_pool(loop=loop, user=configs.db.user, password=configs.db.password, db=configs.db.database)
     app = web.Application(loop=loop, middlewares=[
-        logger_factory, response_factory, auth_factory
+        logger_factory, auth_factory, response_factory
     ])
 
     init_jinja2(app, filters=dict(datetime=datetime_filter))
