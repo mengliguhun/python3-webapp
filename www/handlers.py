@@ -5,8 +5,8 @@ __author__ = 'Michael Liao'
 
 ' url handlers '
 
-import re, time, json, hashlib, base64, asyncio, logging
-from www.apis import APIValueError, APIResourceNotFoundError, APIError
+import re, time, json, hashlib, base64, asyncio, logging,markdown2
+from www.apis import APIValueError, APIPermissionError,APIError
 from www.models import User, Blog, Comment, next_id
 from www.coreweb import get, post
 from aiohttp import web
@@ -18,6 +18,16 @@ _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
 COOKIE_NAME = 'awesession'
 _COOKIE_KEY = configs.session.secret
 
+
+def check_admin(request):
+    if request.__user__ is None or not request.__user__.admin:
+        raise APIPermissionError()
+
+
+def text2html(text):
+    lines = map(lambda s: '<p>%s</p>' % s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'),
+                filter(lambda s: s.strip() != '', text.split('\n')))
+    return ''.join(lines)
 
 def user2cookie(user, max_age):
     '''
@@ -147,3 +157,32 @@ def signout(request):
     r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
     logging.info('user signed out.')
     return r
+
+
+@post('/api/blogs')
+async def api_create_blog(request, *, name, summary, content):
+    check_admin(request)
+    if not name or not name.strip():
+        raise APIValueError('name','name cannot be empty.')
+    if not summary or not summary.strip():
+        raise APIValueError('summary','summary cannot be empty.')
+    if not content or not content.strip():
+        raise APIValueError('content','content cannot be empty.')
+    blog = Blog(user_id=request.__user__.id,user_name=request.__user__.name,user_image=request.__user__.image,name=name.strip(), summary=summary.strip(), content=content.strip())
+    await blog.save()
+
+    return blog
+
+
+@get('/blog/{id}')
+async def get_blog(id):
+    blog = await Blog.find(id)
+    comments = await Comment.findAll('blog_id=?'[id],orderBy='created_at desc')
+    for c in comments:
+        c.html_content =text2html(c.content)
+    blog.html_content = markdown2.markdown(blog.content)
+    return {
+        '__template__': 'blog.html',
+        'blog': blog,
+        'comments': comments
+    }
