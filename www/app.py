@@ -52,7 +52,7 @@ async def data_factory(app, handler):
             elif request.content_type.startswith('application/x-www-form-urlencoded'):
                 request.__data__ = await request.post()
                 logging.info('request form: %s' % str(request.__data__))
-        return (await handler(request))
+        return await handler(request)
 
     return parse_data
 
